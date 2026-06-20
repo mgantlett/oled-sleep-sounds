@@ -1,5 +1,7 @@
 # Somnia: OLED Ambient Sound Synthesizer
 
+![Somnia Dashboard](src/assets/screenshot.png)
+
 Somnia is a premium, self-contained single-page web application that serves as an ambient sleep sound generator. It is designed to be highly optimized for OLED displays, with special features to keep the screen active while turning off pixels.
 
 ## 🌙 Key Features
