@@ -102,12 +102,14 @@ export class SleepSoundSynthesizer {
 
   public async init(): Promise<void> {
     if (this.ctx) return;
+    console.log("[Somnia Audio] Initializing Synthesizer...");
 
     // Create Audio Context
     const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
     this.ctx = new AudioContextClass();
 
     const ctx = this.ctx!;
+    console.log("[Somnia Audio] AudioContext created. Initial state:", ctx.state, "sample rate:", ctx.sampleRate);
 
     // Force stereo output to avoid multi-channel/surround routing bugs in Chrome
     try {
@@ -169,7 +171,9 @@ export class SleepSoundSynthesizer {
 
   public async resume(): Promise<void> {
     if (this.ctx && this.ctx.state === 'suspended') {
+      console.log("[Somnia Audio] Resuming AudioContext... current state:", this.ctx.state);
       await this.ctx.resume();
+      console.log("[Somnia Audio] AudioContext resumed. New state:", this.ctx.state);
       this.isPlaying = true;
       this.startScheduler();
     }
@@ -177,7 +181,9 @@ export class SleepSoundSynthesizer {
 
   public async suspend(): Promise<void> {
     if (this.ctx && this.ctx.state === 'running') {
+      console.log("[Somnia Audio] Suspending AudioContext... current state:", this.ctx.state);
       await this.ctx.suspend();
+      console.log("[Somnia Audio] AudioContext suspended. New state:", this.ctx.state);
       this.isPlaying = false;
       this.stopScheduler();
     }
@@ -187,6 +193,7 @@ export class SleepSoundSynthesizer {
     const gainNode = this.gains[channel];
     if (gainNode && this.ctx) {
       const t = this.ctx.currentTime;
+      console.log(`[Somnia Audio] setChannelVolume(${channel}) -> target: ${targetVol}, current: ${gainNode.gain.value}, ramp: ${rampDuration}, ctxTime: ${t}, ctxState: ${this.ctx.state}`);
       if (this.ctx.state === 'suspended' || rampDuration === 0) {
         gainNode.gain.setValueAtTime(targetVol, t);
       } else {
@@ -200,6 +207,7 @@ export class SleepSoundSynthesizer {
   public setMasterVolume(targetVol: number, rampDuration = 0.05): void {
     if (this.masterGain && this.ctx) {
       const t = this.ctx.currentTime;
+      console.log(`[Somnia Audio] setMasterVolume -> target: ${targetVol}, current: ${this.masterGain.gain.value}, ramp: ${rampDuration}, ctxTime: ${t}, ctxState: ${this.ctx.state}`);
       if (this.ctx.state === 'suspended' || rampDuration === 0) {
         this.masterGain.gain.setValueAtTime(targetVol, t);
       } else {
@@ -598,6 +606,12 @@ export class SleepSoundSynthesizer {
     if (!this.ctx || !this.isPlaying) return;
 
     const ctx = this.ctx;
+    
+    // Throttled log to confirm scheduler is alive (roughly every 5 seconds)
+    if (Math.random() < 0.008) {
+      console.log(`[Somnia Audio] Scheduler ticking. ctxTime: ${ctx.currentTime.toFixed(2)}, masterGain: ${this.masterGain?.gain.value.toFixed(2)}, activeSources count: ${this.activeSources.length}`);
+    }
+
     const lookAhead = 0.1; // 100ms look-ahead
     const scheduleBoundary = ctx.currentTime + lookAhead;
 
