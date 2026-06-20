@@ -1,0 +1,264 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🌙</text></svg>" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="Premium procedural sleep sound synthesizer optimized for OLED displays with Screen Wake Lock protection." />
+    <title>OLED Ambient Sleep Sounds</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  </head>
+  <body class="theme-glass">
+    <div id="app" class="dashboard-container">
+      
+      <!-- HEADER -->
+      <header class="app-header animate-fade-in">
+        <div class="logo-area">
+          <svg class="logo-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/>
+            <path d="M19 3v4M21 5h-4M15 1v2M16 2h-2"/>
+          </svg>
+          <div>
+            <h1>Somnia</h1>
+            <p class="subtitle">OLED Ambient Sound Synthesizer</p>
+          </div>
+        </div>
+        
+        <div class="header-controls">
+          <!-- OLED Pure Black Toggle -->
+          <div class="theme-toggle-container">
+            <span class="toggle-label">OLED Black Mode</span>
+            <label class="switch-control" title="Toggle between deep glassmorphism and pure power-saving black">
+              <input type="checkbox" id="oled-theme-checkbox">
+              <span class="slider-toggle"></span>
+            </label>
+          </div>
+        </div>
+      </header>
+
+      <!-- MAIN CONTENT GRID -->
+      <main class="dashboard-grid">
+        
+        <!-- LEFT COLUMN: PRESETS & MASTER -->
+        <section class="control-panel left-panel animate-slide-left">
+          
+          <!-- Master Control Card -->
+          <div class="glass-card master-card">
+            <div class="card-header">
+              <h2>Master Control</h2>
+              <span class="status-indicator" id="wake-lock-status">Wake Lock Active</span>
+            </div>
+            
+            <div class="master-controls-row">
+              <button id="btn-play-pause" class="btn-primary" aria-label="Start Playback">
+                <svg class="play-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                  <polygon points="6 3 20 12 6 21 6 3"/>
+                </svg>
+                <svg class="pause-icon hidden" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                  <rect x="14" y="4" width="4" height="16" rx="1"/>
+                  <rect x="6" y="4" width="4" height="16" rx="1"/>
+                </svg>
+                <span>Start Audio</span>
+              </button>
+
+              <div class="timer-select-wrapper">
+                <svg class="timer-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <circle cx="12" cy="12" r="10"/>
+                  <polyline points="12 6 12 12 16 14"/>
+                </svg>
+                <select id="select-timer" aria-label="Sleep Timer">
+                  <option value="0">Continuous Play</option>
+                  <option value="1">1 Minute (Test)</option>
+                  <option value="15">15 Minutes</option>
+                  <option value="30">30 Minutes</option>
+                  <option value="60">1 Hour</option>
+                  <option value="120">2 Hours</option>
+                  <option value="240">4 Hours</option>
+                  <option value="480">8 Hours</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="master-volume-container">
+              <div class="volume-label-row">
+                <span>Master Volume</span>
+                <span id="master-vol-val">80%</span>
+              </div>
+              <input type="range" id="slider-master-volume" min="0" max="100" value="80" class="premium-slider">
+            </div>
+
+            <div id="timer-countdown-area" class="timer-countdown-row hidden">
+              <div class="pulse-dot"></div>
+              <span>Time remaining: <strong id="timer-time-left">00:00:00</strong></span>
+              <button id="btn-cancel-timer" class="btn-text" title="Cancel timer">Cancel</button>
+            </div>
+          </div>
+
+          <!-- Soundscapes Presets Card -->
+          <div class="glass-card presets-card">
+            <div class="card-header">
+              <h2>Presets</h2>
+              <span class="badge">Procedural</span>
+            </div>
+            
+            <div class="presets-grid" id="presets-container">
+              <!-- Dynamically populated, plus custom presets -->
+            </div>
+
+            <div class="custom-preset-creator">
+              <h3>Save Current Mix</h3>
+              <form id="form-custom-preset" class="custom-preset-form">
+                <input type="text" id="input-preset-name" placeholder="E.g., Cozy Storm" maxlength="20" required>
+                <button type="submit" class="btn-secondary" aria-label="Save current mix">Save</button>
+              </form>
+            </div>
+          </div>
+
+        </section>
+
+        <!-- RIGHT COLUMN: MIXERS & VISUALIZER -->
+        <section class="control-panel right-panel animate-slide-right">
+          
+          <!-- Sound Mixers Card -->
+          <div class="glass-card mixer-card">
+            <div class="card-header">
+              <h2>Ambient Mixer</h2>
+              <span class="sub-badge" id="preset-active-name">Custom Mix</span>
+            </div>
+            
+            <div class="mixers-container">
+              
+              <!-- Rain Slider -->
+              <div class="mixer-row" data-channel="rain">
+                <div class="mixer-info">
+                  <div class="channel-title">
+                    <span class="channel-icon">🌧️</span>
+                    <span class="channel-name">Rain</span>
+                  </div>
+                  <span class="channel-value" id="val-rain">0%</span>
+                </div>
+                <div class="slider-row">
+                  <input type="range" id="slider-rain" min="0" max="100" value="0" class="premium-slider" data-channel="rain">
+                </div>
+              </div>
+
+              <!-- Ocean Waves Slider -->
+              <div class="mixer-row" data-channel="ocean">
+                <div class="mixer-info">
+                  <div class="channel-title">
+                    <span class="channel-icon">🌊</span>
+                    <span class="channel-name">Ocean Waves</span>
+                  </div>
+                  <span class="channel-value" id="val-ocean">0%</span>
+                </div>
+                <div class="slider-row">
+                  <input type="range" id="slider-ocean" min="0" max="100" value="0" class="premium-slider" data-channel="ocean">
+                </div>
+              </div>
+
+              <!-- Wind Slider -->
+              <div class="mixer-row" data-channel="wind">
+                <div class="mixer-info">
+                  <div class="channel-title">
+                    <span class="channel-icon">🍃</span>
+                    <span class="channel-name">Wind Whispers</span>
+                  </div>
+                  <span class="channel-value" id="val-wind">0%</span>
+                </div>
+                <div class="slider-row">
+                  <input type="range" id="slider-wind" min="0" max="100" value="0" class="premium-slider" data-channel="wind">
+                </div>
+              </div>
+
+              <!-- Campfire Slider -->
+              <div class="mixer-row" data-channel="campfire">
+                <div class="mixer-info">
+                  <div class="channel-title">
+                    <span class="channel-icon">🔥</span>
+                    <span class="channel-name">Campfire</span>
+                  </div>
+                  <span class="channel-value" id="val-campfire">0%</span>
+                </div>
+                <div class="slider-row">
+                  <input type="range" id="slider-campfire" min="0" max="100" value="0" class="premium-slider" data-channel="campfire">
+                </div>
+              </div>
+
+              <!-- Crickets Slider -->
+              <div class="mixer-row" data-channel="crickets">
+                <div class="mixer-info">
+                  <div class="channel-title">
+                    <span class="channel-icon">🦗</span>
+                    <span class="channel-name">Night Crickets</span>
+                  </div>
+                  <span class="channel-value" id="val-crickets">0%</span>
+                </div>
+                <div class="slider-row">
+                  <input type="range" id="slider-crickets" min="0" max="100" value="0" class="premium-slider" data-channel="crickets">
+                </div>
+              </div>
+
+              <!-- Drone Slider -->
+              <div class="mixer-row" data-channel="drone">
+                <div class="mixer-info">
+                  <div class="channel-title">
+                    <span class="channel-icon">🧘</span>
+                    <span class="channel-name">Binaural Drone (4Hz)</span>
+                  </div>
+                  <span class="channel-value" id="val-drone">0%</span>
+                </div>
+                <div class="slider-row">
+                  <input type="range" id="slider-drone" min="0" max="100" value="0" class="premium-slider" data-channel="drone">
+                </div>
+              </div>
+
+            </div>
+          </div>
+
+          <!-- Real-Time Frequency Waveform Card -->
+          <div class="glass-card visualizer-card">
+            <div class="card-header">
+              <h2>Frequency Spectrum</h2>
+            </div>
+            <div class="canvas-container">
+              <canvas id="audio-visualizer"></canvas>
+            </div>
+          </div>
+
+        </section>
+
+      </main>
+
+      <!-- BIG SLEEP BUTTON -->
+      <footer class="app-footer animate-fade-in">
+        <button id="btn-enter-sleep" class="btn-giant" disabled title="Start audio playback first to enable sleep mode">
+          <svg class="giant-moon-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/>
+          </svg>
+          Enter Sleep Mode
+        </button>
+        <span class="footer-tip">OLED pixels turn off completely in pure black sleep mode.</span>
+      </footer>
+
+      <!-- PURE BLACK FULLSCREEN OVERLAY -->
+      <div id="sleep-overlay" class="sleep-screen">
+        <div id="sleep-hud" class="sleep-hud-overlay">
+          <svg class="pulse-moon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/>
+          </svg>
+          <h2 class="sleep-title">Sleep Mode Activated</h2>
+          <p class="sleep-sub">Screen wake lock is active. OLED display pixels are off.</p>
+          <div class="dismiss-tip">
+            <span class="key-cap">Press Any Key</span> or <span class="mouse-action">Move Mouse</span> to return
+          </div>
+        </div>
+      </div>
+
+    </div>
+    
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
