@@ -104,9 +104,14 @@ export class SleepSoundSynthesizer {
     if (this.ctx) return;
     console.log("[Somnia Audio] Initializing Synthesizer...");
 
-    // Create Audio Context
+    // Create Audio Context with forced 48000Hz to match Pipewire hardware rate
     const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
-    this.ctx = new AudioContextClass();
+    try {
+      this.ctx = new AudioContextClass({ sampleRate: 48000 });
+    } catch (e) {
+      console.warn("Failed to create AudioContext with explicit sampleRate:", e);
+      this.ctx = new AudioContextClass();
+    }
 
     const ctx = this.ctx!;
     console.log("[Somnia Audio] AudioContext created. Initial state:", ctx.state, "sample rate:", ctx.sampleRate);
@@ -246,6 +251,27 @@ export class SleepSoundSynthesizer {
     setTimeout(() => {
       this.suspend().then(callback);
     }, duration * 1000);
+  }
+
+  public playDiagnosticBeep(): void {
+    if (!this.ctx) return;
+    console.log("[Somnia Audio] Playing direct diagnostic beep...");
+    const osc = this.ctx.createOscillator();
+    const gainNode = this.ctx.createGain();
+    const t = this.ctx.currentTime;
+    
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(440, t);
+    
+    gainNode.gain.setValueAtTime(0.0, t);
+    gainNode.gain.linearRampToValueAtTime(0.5, t + 0.05);
+    gainNode.gain.exponentialRampToValueAtTime(0.0001, t + 1.0);
+    
+    osc.connect(gainNode);
+    gainNode.connect(this.ctx.destination);
+    
+    osc.start(t);
+    osc.stop(t + 1.0);
   }
 
   /**

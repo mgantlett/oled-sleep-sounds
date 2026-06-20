@@ -38,6 +38,7 @@ let morphAnimationFrameId: number | null = null;
 
 // DOM Element references
 let btnPlayPause: HTMLButtonElement;
+let btnTestBeep: HTMLButtonElement;
 let btnEnterSleep: HTMLButtonElement;
 let sliderMasterVolume: HTMLInputElement;
 let masterVolVal: HTMLSpanElement;
@@ -66,6 +67,7 @@ window.addEventListener('DOMContentLoaded', () => {
 
 function initializeDOMElements() {
   btnPlayPause = document.getElementById('btn-play-pause') as HTMLButtonElement;
+  btnTestBeep = document.getElementById('btn-test-beep') as HTMLButtonElement;
   btnEnterSleep = document.getElementById('btn-enter-sleep') as HTMLButtonElement;
   sliderMasterVolume = document.getElementById('slider-master-volume') as HTMLInputElement;
   masterVolVal = document.getElementById('master-vol-val') as HTMLSpanElement;
@@ -87,6 +89,9 @@ function initializeDOMElements() {
 function setupEventListeners() {
   // Play/Pause button
   btnPlayPause.addEventListener('click', toggleAudio);
+
+  // Diagnostic Test Beep button
+  btnTestBeep.addEventListener('click', triggerDiagnosticBeep);
 
   // Master Volume
   sliderMasterVolume.addEventListener('input', (e) => {
@@ -678,4 +683,14 @@ function drawVisualizer() {
   }
 
   renderFrame();
+}
+
+async function triggerDiagnosticBeep() {
+  if (!synth) {
+    synth = new SleepSoundSynthesizer();
+    await synth.init();
+    drawVisualizer();
+  }
+  await synth.resume();
+  synth.playDiagnosticBeep();
 }
