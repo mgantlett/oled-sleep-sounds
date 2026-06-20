@@ -73,8 +73,9 @@ export class SleepSoundSynthesizer {
   private compressor: DynamicsCompressorNode | null = null;
   private analyserNode: AnalyserNode | null = null;
 
-  // Individual Sound Channel Gains
+  // Individual Sound Channel Gains and Panners
   private gains: Record<string, GainNode> = {};
+  private panners: Record<string, PannerNode> = {};
 
   // Noise Buffers
   private whiteNoiseBuffer: AudioBuffer | null = null;
@@ -116,33 +117,34 @@ export class SleepSoundSynthesizer {
     const ctx = this.ctx!;
     console.log("[Somnia Audio] AudioContext created. Initial state:", ctx.state, "sample rate:", ctx.sampleRate);
 
-    // Force stereo output to avoid multi-channel/surround routing bugs in Chrome
-    try {
-      ctx.destination.channelCount = 2;
-      ctx.destination.channelCountMode = 'explicit';
-      ctx.destination.channelInterpretation = 'speakers';
-    } catch (e) {
-      console.warn("Failed to set explicit stereo channel count on AudioContext destination:", e);
-    }
+
 
     // Create master chain
     this.analyserNode = ctx.createAnalyser();
     this.analyserNode.fftSize = 256;
 
-    this.compressor = ctx.createDynamicsCompressor();
-    // Configure soft-limiting to prevent clipping
-    this.compressor.threshold.value = -12;
-    this.compressor.knee.value = 30;
-    this.compressor.ratio.value = 12;
-    this.compressor.attack.value = 0.003;
-    this.compressor.release.value = 0.25;
-
     this.masterGain = ctx.createGain();
     this.masterGain.gain.setValueAtTime(0.8, ctx.currentTime);
 
-    // Connect: Sources -> Individual Gains -> Compressor -> Master Gain -> Analyser -> Destination
-    this.compressor.connect(this.masterGain);
+    // Connect: Master Gain -> Analyser -> Destination
     this.masterGain.connect(this.analyserNode);
+
+    // Configure 7.1 output if supported
+    try {
+      const maxChannels = ctx.destination.maxChannelCount;
+      if (maxChannels > 2) {
+        ctx.destination.channelCount = maxChannels;
+        ctx.destination.channelCountMode = 'explicit';
+        ctx.destination.channelInterpretation = 'speakers';
+        console.log(`[Somnia Audio] Surround device detected. Configured for ${maxChannels} channels.`);
+      } else {
+        console.log("[Somnia Audio] Stereo device detected.");
+      }
+    } catch (err) {
+      console.warn("[Somnia Audio] Failed to configure surround channels:", err);
+    }
+    
+    // Connect master chain directly to destination
     this.analyserNode.connect(ctx.destination);
 
     // Generate stereo noise buffers
@@ -150,12 +152,24 @@ export class SleepSoundSynthesizer {
     this.pinkNoiseBuffer = this.createStereoNoiseBuffer('pink', 4.0);
     this.brownNoiseBuffer = this.createStereoNoiseBuffer('brown', 4.0);
 
-    // Set up channel gains
+    // Set up channel gains and panners
     const channels = ['rain', 'ocean', 'wind', 'campfire', 'crickets', 'drone'];
     channels.forEach(ch => {
+      // Spatial Panner
+      const panner = ctx.createPanner();
+      panner.panningModel = 'equalpower';
+      panner.distanceModel = 'linear';
+      panner.positionX.setValueAtTime(0, ctx.currentTime);
+      panner.positionY.setValueAtTime(0, ctx.currentTime);
+      panner.positionZ.setValueAtTime(0, ctx.currentTime); // 0,0 is center of room
+      this.panners[ch] = panner;
+
       const g = ctx.createGain();
       g.gain.setValueAtTime(0.0, ctx.currentTime);
-      g.connect(this.compressor!);
+      
+      // Route: Channel -> Panner -> Master Gain
+      g.connect(panner);
+      panner.connect(this.masterGain!);
       this.gains[ch] = g;
     });
 
@@ -231,6 +245,24 @@ export class SleepSoundSynthesizer {
     return this.masterGain ? this.masterGain.gain.value : 0;
   }
 
+  public setChannelPosition(channel: string, x: number, z: number): void {
+    const panner = this.panners[channel];
+    if (panner && this.ctx) {
+      const t = this.ctx.currentTime;
+      if (this.ctx.state === 'suspended') {
+        panner.positionX.setValueAtTime(x, t);
+        panner.positionZ.setValueAtTime(z, t);
+      } else {
+        panner.positionX.cancelScheduledValues(t);
+        panner.positionZ.cancelScheduledValues(t);
+        panner.positionX.setValueAtTime(panner.positionX.value, t);
+        panner.positionZ.setValueAtTime(panner.positionZ.value, t);
+        panner.positionX.linearRampToValueAtTime(x, t + 0.1);
+        panner.positionZ.linearRampToValueAtTime(z, t + 0.1);
+      }
+    }
+  }
+
   public morphToPreset(preset: SoundVolumes, duration = 2.0): void {
     this.setChannelVolume('rain', preset.rain, duration);
     this.setChannelVolume('ocean', preset.ocean, duration);
@@ -268,7 +300,24 @@ export class SleepSoundSynthesizer {
     gainNode.gain.exponentialRampToValueAtTime(0.0001, t + 1.0);
     
     osc.connect(gainNode);
-    gainNode.connect(this.ctx.destination);
+
+    try {
+      const maxChannels = this.ctx.destination.maxChannelCount;
+      if (maxChannels > 2) {
+        const merger = this.ctx.createChannelMerger(maxChannels);
+        for (let i = 0; i < maxChannels; i++) {
+          gainNode.connect(merger, 0, i);
+        }
+        merger.connect(this.ctx.destination);
+        console.log(`[Somnia Audio] Diagnostic beep cloned to all ${maxChannels} channels.`);
+      } else {
+        gainNode.connect(this.ctx.destination);
+        console.log("[Somnia Audio] Diagnostic beep connected directly (stereo).");
+      }
+    } catch (e) {
+      console.warn("Failed to merge channels for diagnostic beep:", e);
+      gainNode.connect(this.ctx.destination);
+    }
     
     osc.start(t);
     osc.stop(t + 1.0);
@@ -709,7 +758,7 @@ export class SleepSoundSynthesizer {
     osc.connect(filter);
     filter.connect(gainNode);
     gainNode.connect(panner);
-    panner.connect(this.compressor!);
+    panner.connect(this.masterGain!);
 
     osc.start(time);
     osc.stop(time + duration + 0.01);
@@ -741,7 +790,7 @@ export class SleepSoundSynthesizer {
     source.connect(filter);
     filter.connect(gainNode);
     gainNode.connect(panner);
-    panner.connect(this.compressor!);
+    panner.connect(this.masterGain!);
 
     source.start(time);
     source.stop(time + duration + 0.01);

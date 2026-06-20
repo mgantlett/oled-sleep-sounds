@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>7.1 Surround Diagnostic</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+      body {
+        background-color: #09070f;
+        color: #f3f0f7;
+        font-family: 'Outfit', sans-serif;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 3rem;
+        text-align: center;
+      }
+      h1 { color: #9d4edd; margin-bottom: 0.5rem; }
+      p { color: #a39eb2; margin-bottom: 2rem; max-width: 600px; }
+      
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 1.5rem;
+        max-width: 500px;
+        width: 100%;
+        background: rgba(18, 14, 30, 0.55);
+        padding: 2rem;
+        border-radius: 20px;
+        border: 1px solid rgba(255, 255, 255, 0.07);
+      }
+
+      button {
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        color: #fff;
+        padding: 1.5rem 1rem;
+        border-radius: 12px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: 0.2s;
+        font-family: inherit;
+        font-size: 1rem;
+      }
+
+      button:hover {
+        background: rgba(157, 78, 221, 0.2);
+        border-color: #9d4edd;
+        transform: scale(1.05);
+      }
+
+      button.active {
+        background: #9d4edd;
+        box-shadow: 0 0 15px rgba(157, 78, 221, 0.6);
+      }
+
+      /* Speaker mapping layout */
+      .fl { grid-column: 1; grid-row: 1; }
+      .fc { grid-column: 2; grid-row: 1; }
+      .fr { grid-column: 3; grid-row: 1; }
+      
+      .sl { grid-column: 1; grid-row: 2; }
+      .lfe { grid-column: 2; grid-row: 2; border-color: #ef476f; color: #ef476f; }
+      .sr { grid-column: 3; grid-row: 2; }
+      
+      .rl { grid-column: 1; grid-row: 3; }
+      .empty { grid-column: 2; grid-row: 3; visibility: hidden; }
+      .rr { grid-column: 3; grid-row: 3; }
+
+      .nav-back {
+        margin-top: 3rem;
+        color: #a39eb2;
+        text-decoration: underline;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>7.1 Hardware Diagnostic</h1>
+    <p>Click a speaker below. It will inject a pure 440Hz tone directly into that raw channel index. If you click a rear channel and it plays out of the front, your hardware/OS is downmixing it.</p>
+    
+    <div class="grid" id="button-grid">
+      <button class="fl" data-channel="0">Front Left</button>
+      <button class="fc" data-channel="4">Center</button>
+      <button class="fr" data-channel="1">Front Right</button>
+      
+      <button class="sl" data-channel="6">Side Left</button>
+      <button class="lfe" data-channel="5">Subwoofer</button>
+      <button class="sr" data-channel="7">Side Right</button>
+      
+      <button class="rl" data-channel="2">Rear Left</button>
+      <div class="empty"></div>
+      <button class="rr" data-channel="3">Rear Right</button>
+    </div>
+
+    <a href="/" class="nav-back">← Back to Sleep Sounds</a>
+
+    <script type="module" src="/src/test-surround.ts"></script>
+  </body>
+</html>

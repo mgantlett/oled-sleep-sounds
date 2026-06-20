@@ -124,6 +124,34 @@
         <!-- RIGHT COLUMN: MIXERS & VISUALIZER -->
         <section class="control-panel right-panel animate-slide-right">
           
+          <!-- Spatial Room Panner Card -->
+          <div class="glass-card spatial-card">
+            <div class="card-header">
+              <h2>Spatial Audio Room</h2>
+              <span class="sub-badge">7.1 Surround</span>
+            </div>
+            
+            <div class="spatial-room-container">
+              <div class="spatial-room" id="spatial-room">
+                <!-- Grid Rings -->
+                <div class="room-ring ring-1"></div>
+                <div class="room-ring ring-2"></div>
+                <!-- Center Listener -->
+                <div class="room-center"></div>
+                
+                <!-- Draggable Nodes -->
+                <!-- Default positions spread around the room -->
+                <div class="spatial-node" id="node-rain" data-channel="rain" style="left: 20%; top: 20%;" title="Rain">🌧️</div>
+                <div class="spatial-node" id="node-ocean" data-channel="ocean" style="left: 80%; top: 20%;" title="Ocean Waves">🌊</div>
+                <div class="spatial-node" id="node-wind" data-channel="wind" style="left: 20%; top: 80%;" title="Wind">🍃</div>
+                <div class="spatial-node" id="node-campfire" data-channel="campfire" style="left: 80%; top: 80%;" title="Campfire">🔥</div>
+                <div class="spatial-node" id="node-crickets" data-channel="crickets" style="left: 50%; top: 85%;" title="Crickets">🦗</div>
+                <div class="spatial-node" id="node-drone" data-channel="drone" style="left: 50%; top: 50%;" title="Drone">🧘</div>
+              </div>
+            </div>
+            <div class="spatial-tip">Drag icons to position sounds in 3D space. Top=Front, Bottom=Rear.</div>
+          </div>
+
           <!-- Sound Mixers Card -->
           <div class="glass-card mixer-card">
             <div class="card-header">

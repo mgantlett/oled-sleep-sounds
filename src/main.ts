@@ -10,6 +10,8 @@ let sleepTimerSecondsLeft = 0;
 
 // Screen Wake Lock references
 let wakeLock: any = null;
+let dummyVideo: HTMLVideoElement | null = null;
+let dummyCanvasInterval: number | null = null;
 let isSleepModeActive = false;
 
 // Custom user presets stored in localStorage
@@ -60,6 +62,7 @@ const channels = ['rain', 'ocean', 'wind', 'campfire', 'crickets', 'drone'];
 
 window.addEventListener('DOMContentLoaded', () => {
   initializeDOMElements();
+  restoreCurrentState();
   setupEventListeners();
   renderPresetsList();
   setupVisualizer();
@@ -100,6 +103,7 @@ function setupEventListeners() {
     if (synth) {
       synth.setMasterVolume(val / 100);
     }
+    saveCurrentState();
   });
 
   // Channel Volume Sliders
@@ -119,6 +123,7 @@ function setupEventListeners() {
         // Change current active preset title to "Custom Mix"
         presetActiveName.textContent = "Custom Mix";
         deselectAllPresetButtons();
+        saveCurrentState();
       });
     }
   });
@@ -160,6 +165,57 @@ function setupEventListeners() {
 
   // Wake lock visibility listener (if browser tab switches, lock is released; reclaim when visible again)
   document.addEventListener('visibilitychange', handleVisibilityChange);
+
+  // Spatial Room Drag Logic
+  const room = document.getElementById('spatial-room');
+  const nodes = document.querySelectorAll('.spatial-node');
+
+  if (room) {
+    nodes.forEach((node) => {
+      const el = node as HTMLDivElement;
+      const channel = el.dataset.channel!;
+
+      el.addEventListener('pointerdown', (e) => {
+        e.preventDefault();
+        el.classList.add('dragging');
+        
+        const rect = room.getBoundingClientRect();
+        
+        const onMove = (moveEvent: PointerEvent) => {
+          let x = moveEvent.clientX - rect.left;
+          let y = moveEvent.clientY - rect.top;
+          
+          // Clamp to room bounds
+          x = Math.max(0, Math.min(rect.width, x));
+          y = Math.max(0, Math.min(rect.height, y));
+          
+          // Update UI positioning
+          const px = (x / rect.width) * 100;
+          const py = (y / rect.height) * 100;
+          el.style.left = `${px}%`;
+          el.style.top = `${py}%`;
+          
+          // Set Audio Position: map [0..1] to [-1..1]
+          // X = Left/Right, Z = Front/Rear
+          const audioX = (x / rect.width) * 2 - 1;
+          const audioZ = (y / rect.height) * 2 - 1;
+          if (synth) {
+            synth.setChannelPosition(channel, audioX, audioZ);
+          }
+          saveCurrentState();
+        };
+
+        const onUp = () => {
+          el.classList.remove('dragging');
+          document.removeEventListener('pointermove', onMove);
+          document.removeEventListener('pointerup', onUp);
+        };
+
+        document.addEventListener('pointermove', onMove);
+        document.addEventListener('pointerup', onUp);
+      });
+    });
+  }
 }
 
 /**
@@ -180,6 +236,17 @@ async function toggleAudio() {
         const val = parseInt(slider.value) / 100;
         synth!.setChannelVolume(ch, val);
       }
+    });
+
+    // Set initial spatial positions
+    document.querySelectorAll('.spatial-node').forEach(node => {
+      const el = node as HTMLDivElement;
+      const channel = el.dataset.channel!;
+      const px = parseFloat(el.style.left || '50');
+      const py = parseFloat(el.style.top || '50');
+      const audioX = (px / 100) * 2 - 1;
+      const audioZ = (py / 100) * 2 - 1;
+      synth!.setChannelPosition(channel, audioX, audioZ);
     });
 
     // Start drawing visualizer
@@ -353,6 +420,7 @@ function animateSlidersTo(targets: Record<string, number>, durationMs = 2000) {
       morphAnimationFrameId = requestAnimationFrame(step);
     } else {
       morphAnimationFrameId = null;
+      saveCurrentState(); // Save after morph finishes
     }
   }
 
@@ -407,6 +475,66 @@ function deleteCustomPreset(id: string) {
   }
   
   renderPresetsList();
+}
+
+/**
+ * STATE PERSISTENCE
+ */
+function saveCurrentState() {
+  const state: any = {
+    masterVol: sliderMasterVolume.value,
+    channels: {},
+    spatial: {}
+  };
+  channels.forEach(ch => {
+    const slider = document.getElementById(`slider-${ch}`) as HTMLInputElement;
+    if (slider) state.channels[ch] = slider.value;
+    
+    const node = document.getElementById(`node-${ch}`);
+    if (node) {
+      state.spatial[ch] = {
+        left: node.style.left,
+        top: node.style.top
+      };
+    }
+  });
+  localStorage.setItem('somnia_last_state', JSON.stringify(state));
+}
+
+function restoreCurrentState() {
+  const saved = localStorage.getItem('somnia_last_state');
+  if (saved) {
+    try {
+      const state = JSON.parse(saved);
+      if (state.masterVol) {
+        sliderMasterVolume.value = state.masterVol;
+        masterVolVal.textContent = `${state.masterVol}%`;
+      }
+      if (state.channels) {
+        channels.forEach(ch => {
+          if (state.channels[ch]) {
+            const slider = document.getElementById(`slider-${ch}`) as HTMLInputElement;
+            const label = document.getElementById(`val-${ch}`);
+            if (slider) slider.value = state.channels[ch];
+            if (label) label.textContent = `${state.channels[ch]}%`;
+          }
+        });
+      }
+      if (state.spatial) {
+        channels.forEach(ch => {
+          if (state.spatial[ch]) {
+            const node = document.getElementById(`node-${ch}`);
+            if (node) {
+              node.style.left = state.spatial[ch].left;
+              node.style.top = state.spatial[ch].top;
+            }
+          }
+        });
+      }
+    } catch (e) {
+      console.warn("Failed to parse saved state");
+    }
+  }
 }
 
 /**
@@ -487,12 +615,11 @@ function handleTimerFinish() {
  * SCREEN WAKE LOCK
  */
 async function requestWakeLock() {
+  // 1. Try standard API
   if ('wakeLock' in navigator) {
     try {
       wakeLock = await (navigator as any).wakeLock.request('screen');
-      wakeLockStatus.textContent = "Wake Lock Active";
-      wakeLockStatus.classList.add('active');
-      
+      updateWakeLockStatus(true);
       wakeLock.addEventListener('release', () => {
         updateWakeLockStatus(false);
       });
@@ -503,6 +630,34 @@ async function requestWakeLock() {
   } else {
     updateWakeLockStatus(false);
   }
+
+  // 2. Video fallback (Highly reliable for Linux/Wayland where API fails)
+  // Browsers prevent display sleep when a video is actively playing.
+  if (!dummyVideo) {
+    dummyVideo = document.createElement('video');
+    dummyVideo.muted = true;
+    dummyVideo.playsInline = true;
+    dummyVideo.style.display = 'none';
+    document.body.appendChild(dummyVideo);
+
+    const canvas = document.createElement('canvas');
+    canvas.width = 10;
+    canvas.height = 10;
+    const ctx = canvas.getContext('2d');
+    
+    // Animate canvas at 1fps to ensure OS recognizes active video stream
+    dummyCanvasInterval = window.setInterval(() => {
+      if (ctx) {
+        ctx.fillStyle = Math.random() > 0.5 ? '#000000' : '#010101';
+        ctx.fillRect(0, 0, 10, 10);
+      }
+    }, 1000);
+
+    const stream = canvas.captureStream(1);
+    dummyVideo.srcObject = stream;
+  }
+  
+  dummyVideo.play().catch(err => console.warn("Dummy video fallback failed:", err));
 }
 
 function releaseWakeLock() {
@@ -511,6 +666,10 @@ function releaseWakeLock() {
       wakeLock = null;
       updateWakeLockStatus(false);
     });
+  }
+  
+  if (dummyVideo) {
+    dummyVideo.pause();
   }
 }
 
@@ -543,8 +702,10 @@ async function enterSleepMode() {
   // Request screen wake lock explicitly
   await requestWakeLock();
 
-  // Show fullscreen overlay
+  // Show fullscreen overlay and hide scrollbars completely
   sleepOverlay.style.display = 'flex';
+  document.documentElement.style.overflow = 'hidden';
+  document.body.style.overflow = 'hidden';
 
   // Request fullscreen to cover navigation bars/taskbars
   try {
@@ -582,8 +743,10 @@ function exitSleepMode() {
     document.exitFullscreen().catch(err => console.warn(err));
   }
 
-  // Hide Sleep Overlay
+  // Hide Sleep Overlay and restore scrollbars
   sleepOverlay.style.display = 'none';
+  document.documentElement.style.overflow = '';
+  document.body.style.overflow = '';
   
   // Clean up wake-up listeners
   window.removeEventListener('keydown', exitSleepMode);
