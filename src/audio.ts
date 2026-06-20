@@ -187,19 +187,26 @@ export class SleepSoundSynthesizer {
     const gainNode = this.gains[channel];
     if (gainNode && this.ctx) {
       const t = this.ctx.currentTime;
-      gainNode.gain.cancelScheduledValues(t);
-      // Soft transition to avoid audio clicks
-      gainNode.gain.setValueAtTime(gainNode.gain.value, t);
-      gainNode.gain.linearRampToValueAtTime(targetVol, t + rampDuration);
+      if (this.ctx.state === 'suspended' || rampDuration === 0) {
+        gainNode.gain.setValueAtTime(targetVol, t);
+      } else {
+        gainNode.gain.cancelScheduledValues(t);
+        gainNode.gain.setValueAtTime(gainNode.gain.value, t);
+        gainNode.gain.linearRampToValueAtTime(targetVol, t + rampDuration);
+      }
     }
   }
 
   public setMasterVolume(targetVol: number, rampDuration = 0.05): void {
     if (this.masterGain && this.ctx) {
       const t = this.ctx.currentTime;
-      this.masterGain.gain.cancelScheduledValues(t);
-      this.masterGain.gain.setValueAtTime(this.masterGain.gain.value, t);
-      this.masterGain.gain.linearRampToValueAtTime(targetVol, t + rampDuration);
+      if (this.ctx.state === 'suspended' || rampDuration === 0) {
+        this.masterGain.gain.setValueAtTime(targetVol, t);
+      } else {
+        this.masterGain.gain.cancelScheduledValues(t);
+        this.masterGain.gain.setValueAtTime(this.masterGain.gain.value, t);
+        this.masterGain.gain.linearRampToValueAtTime(targetVol, t + rampDuration);
+      }
     }
   }
 
